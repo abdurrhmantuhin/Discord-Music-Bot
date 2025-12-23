@@ -41,9 +41,15 @@ YTDL_FORMAT_OPTIONS = {
 # ============================================
 # FFmpeg Configuration
 # ============================================
+import shutil
+
+# Find FFmpeg executable
+FFMPEG_EXECUTABLE = shutil.which('ffmpeg') or 'ffmpeg'
+
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn'
+    'options': '-vn',
+    'executable': FFMPEG_EXECUTABLE
 }
 
 # ============================================

@@ -1,7 +1,9 @@
 # Nixpacks configuration for Railway deployment
 
+# Use Debian-based image with FFmpeg pre-installed
 [phases.setup]
-nixPkgs = ["ffmpeg-full", "python311", "libopus", "libsodium"]
+nixPkgs = ["ffmpeg", "python311", "opus", "libsodium"]
+aptPkgs = ["ffmpeg", "libopus0", "libsodium23"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
