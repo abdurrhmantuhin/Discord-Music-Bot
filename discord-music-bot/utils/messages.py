@@ -13,25 +13,24 @@ from enum import Enum
 
 class Colors:
     """
-    Embed colors - Aesthetic soft purple/violet palette.
-    Change these values to customize the theme.
+    Embed colors - Unified pastel theme.
+    All embeds use the same color for consistency.
     """
-    # Primary - Soft Violet (main embed color)
-    PRIMARY = 0x8B5CF6      # Soft violet
+    # Unified color for all embeds: Soft Pastel Blue
+    UNIFIED = 0xAFC6E9      # #AFC6E9
     
-    # Status colors
-    SUCCESS = 0x7C3AED      # Muted purple
-    ERROR = 0x6D28D9        # Deep violet
-    WARNING = 0xA78BFA      # Light lavender
-    INFO = 0x6366F1         # Soft indigo
+    # All embeds should use UNIFIED color
+    PRIMARY = UNIFIED
+    SUCCESS = UNIFIED
+    ERROR = UNIFIED
+    WARNING = UNIFIED
+    INFO = UNIFIED
+    MUSIC = UNIFIED
     
-    # Music embed - Main aesthetic color
-    MUSIC = 0x7C3AED        # Premium violet
-    
-    # Alternative theme colors (for easy customization)
-    THEME_MIDNIGHT = 0x4C1D95    # Dark violet
-    THEME_LAVENDER = 0xA78BFA    # Light lavender
-    THEME_INDIGO = 0x6366F1      # Soft indigo
+    # Theme reference (same color for compatibility)
+    THEME_MIDNIGHT = UNIFIED
+    THEME_LAVENDER = UNIFIED
+    THEME_INDIGO = UNIFIED
 
 
 # ============================================
