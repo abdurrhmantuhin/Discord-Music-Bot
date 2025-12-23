@@ -1,0 +1,11 @@
+# Nixpacks configuration for Railway deployment
+# This installs FFmpeg which is required for audio streaming
+
+[phases.setup]
+nixPkgs = ["ffmpeg", "python311"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python bot.py"

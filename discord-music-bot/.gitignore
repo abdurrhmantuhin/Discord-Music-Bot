@@ -1,0 +1,31 @@
+# Environment variables - NEVER commit this!
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Downloaded audio files
+*.webm
+*.m4a
+*.mp3
+*.mp4
