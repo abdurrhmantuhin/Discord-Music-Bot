@@ -8,16 +8,30 @@ from enum import Enum
 
 
 # ============================================
-# Color Constants
+# Color Constants - Aesthetic Theme
 # ============================================
 
 class Colors:
-    """Embed colors for different message types."""
-    SUCCESS = 0x2ECC71   # Green
-    ERROR = 0xE74C3C     # Red
-    WARNING = 0xF39C12   # Orange
-    INFO = 0x3498DB      # Blue
-    MUSIC = 0x1DB954     # Spotify Green
+    """
+    Embed colors - Aesthetic soft purple/violet palette.
+    Change these values to customize the theme.
+    """
+    # Primary - Soft Violet (main embed color)
+    PRIMARY = 0x8B5CF6      # Soft violet
+    
+    # Status colors
+    SUCCESS = 0x7C3AED      # Muted purple
+    ERROR = 0x6D28D9        # Deep violet
+    WARNING = 0xA78BFA      # Light lavender
+    INFO = 0x6366F1         # Soft indigo
+    
+    # Music embed - Main aesthetic color
+    MUSIC = 0x7C3AED        # Premium violet
+    
+    # Alternative theme colors (for easy customization)
+    THEME_MIDNIGHT = 0x4C1D95    # Dark violet
+    THEME_LAVENDER = 0xA78BFA    # Light lavender
+    THEME_INDIGO = 0x6366F1      # Soft indigo
 
 
 # ============================================
