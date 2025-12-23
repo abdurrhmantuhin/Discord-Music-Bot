@@ -50,7 +50,6 @@ class MusicPlayer:
         while not self.bot.is_closed():
             # Check if stopped flag is set
             if self.stopped:
-            if self.stopped:
                 return self.destroy(self.guild, intentional=True)
             
             self.next.clear()
@@ -74,12 +73,10 @@ class MusicPlayer:
                         if not self.queue:
                             # Check if stopped before waiting
                             if self.stopped:
-                            if self.stopped:
                                 return self.destroy(self.guild, intentional=True)
                             # Wait for songs to be added
                             await asyncio.sleep(2)
                             # Check if stopped again after sleep
-                            if self.stopped or not self.guild.voice_client:
                             if self.stopped or not self.guild.voice_client:
                                 return self.destroy(self.guild, intentional=True if self.stopped else False)
                             continue
@@ -91,7 +88,6 @@ class MusicPlayer:
             
             # Double check stopped flag and voice connection before playing
             if self.stopped or not self.guild.voice_client or not self.guild.voice_client.is_connected():
-                if self.stopped or not self.guild.voice_client or not self.guild.voice_client.is_connected():
                 return self.destroy(self.guild, intentional=True if self.stopped else False)
             
             try:
@@ -108,7 +104,6 @@ class MusicPlayer:
                     continue
                 
                 # Final check before playing
-                if self.stopped or not self.guild.voice_client:
                 if self.stopped or not self.guild.voice_client:
                     return self.destroy(self.guild, intentional=True if self.stopped else False)
                 
