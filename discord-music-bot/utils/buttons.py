@@ -9,6 +9,9 @@ from discord import ui
 import asyncio
 from datetime import datetime, timedelta
 
+# Import centralized messages
+from utils.messages import Voice, Playback, Controls, Queue, Volume, Colors
+
 
 class MusicControlView(ui.View):
     """
@@ -75,18 +78,12 @@ class MusicControlView(ui.View):
         """
         # Check if user is in the same voice channel as the bot
         if not interaction.user.voice:
-            await interaction.response.send_message(
-                "❌ You must be in a voice channel to use these controls.",
-                ephemeral=True
-            )
+            await interaction.response.send_message(Controls.MUST_BE_IN_VC, ephemeral=True)
             return False
         
         bot_voice = interaction.guild.voice_client
         if not bot_voice or interaction.user.voice.channel != bot_voice.channel:
-            await interaction.response.send_message(
-                "❌ You must be in **my** voice channel to use these controls.",
-                ephemeral=True
-            )
+            await interaction.response.send_message(Voice.NOT_SAME_CHANNEL, ephemeral=True)
             return False
         
         # Check DJ role requirement
@@ -95,10 +92,7 @@ class MusicControlView(ui.View):
             if dj_role:
                 # DJ role exists - check if user has it
                 if dj_role not in interaction.user.roles:
-                    await interaction.response.send_message(
-                        "❌ You need the **DJ** role to use this control.",
-                        ephemeral=True
-                    )
+                    await interaction.response.send_message(Controls.DJ_REQUIRED, ephemeral=True)
                     return False
         
         # Check cooldown (3 seconds per user)
@@ -107,10 +101,7 @@ class MusicControlView(ui.View):
         if user_id in self.cooldowns:
             time_since = (now - self.cooldowns[user_id]).total_seconds()
             if time_since < 3:
-                await interaction.response.send_message(
-                    f"⏳ Please wait {3 - int(time_since)} seconds before clicking again.",
-                    ephemeral=True
-                )
+                await interaction.response.send_message(Controls.COOLDOWN, ephemeral=True)
                 return False
         
         self.cooldowns[user_id] = now
@@ -143,7 +134,7 @@ class MusicControlView(ui.View):
         
         vc = interaction.guild.voice_client
         if not vc:
-            await interaction.response.send_message("❌ Not playing anything!", ephemeral=True)
+            await interaction.response.send_message(Playback.NOTHING_PLAYING, ephemeral=True)
             return
         
         if vc.is_paused():
@@ -159,7 +150,7 @@ class MusicControlView(ui.View):
             button.style = discord.ButtonStyle.success
             await interaction.response.edit_message(view=self)
         else:
-            await interaction.response.send_message("❌ Nothing to pause/resume!", ephemeral=True)
+            await interaction.response.send_message(Controls.NOTHING_TO_PAUSE, ephemeral=True)
     
     @ui.button(emoji="⏭️", label="Skip", style=discord.ButtonStyle.primary, row=0)
     async def skip_btn(self, interaction: discord.Interaction, button: ui.Button):
