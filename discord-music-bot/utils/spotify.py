@@ -41,9 +41,14 @@ class SpotifyHandler:
         
         client_id = os.getenv('SPOTIFY_CLIENT_ID')
         client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
-        redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:8888/callback')
+        redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:8888/callback')
         scope = "user-library-read playlist-read-private playlist-read-collaborative user-top-read"
-        cache_path = ".spotify_cache"
+        
+        # Get absolute path to cache file (in the discord-music-bot folder)
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cache_path = os.path.join(current_dir, ".spotify_cache")
+        
+        print(f"Looking for Spotify cache at: {cache_path}")
         
         # Debug: Print what we got (masked)
         print(f"🔍 Spotify Client ID: {'*' * 8 + client_id[-4:] if client_id else 'NOT SET'}")
