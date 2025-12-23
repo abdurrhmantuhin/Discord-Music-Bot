@@ -75,11 +75,6 @@ def create_now_playing_embed(source, player, requester=None):
         loop_status = "Off"
     embed.add_field(name="Loop", value=loop_status, inline=True)
     
-    # Queue length
-    queue_len = len(player.queue)
-    if queue_len > 0:
-        embed.add_field(name="Up Next", value=f"{queue_len} tracks", inline=True)
-    
     # Footer - Subtle requester info
     if requester:
         embed.set_footer(
