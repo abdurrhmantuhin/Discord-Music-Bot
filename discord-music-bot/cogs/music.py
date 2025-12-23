@@ -19,7 +19,7 @@ from config import (
 )
 from utils.ytdl import YTDLSource
 from utils.spotify import SpotifyHandler
-from utils.embeds import create_now_playing_embed
+from utils.embeds import create_now_playing_embed, create_playlist_embed, create_song_added_embed
 
 
 class MusicPlayer:
@@ -284,29 +284,59 @@ class Music(commands.Cog):
         try:
             # Check if it's a Spotify URL
             if 'spotify.com' in query:
-                # No "processing" message - just do it silently
-                queries = await self.spotify.process_spotify_url(query)
+                # Get playlist/track data from Spotify
+                spotify_data = await self.spotify.process_spotify_url(query)
                 
-                if queries:
-                    added = 0
-                    for search_query in queries:
-                        try:
-                            result = await YTDLSource.search(search_query, loop=self.bot.loop)
-                            player.queue.append(result)
-                            added += 1
-                        except:
-                            continue
-                    
-                    if added > 0:
-                        await ctx.send(f"✅ Added **{added}** song(s) to queue!")
-                        return
+                if spotify_data:
+                    # Check if it's a playlist (dict) or single track (list)
+                    if isinstance(spotify_data, dict) and 'tracks' in spotify_data:
+                        # It's a playlist
+                        tracks = spotify_data.get('tracks', [])
+                        if tracks:
+                            added = 0
+                            total_added = 0
+                            for search_query in tracks:
+                                try:
+                                    result = await YTDLSource.search(search_query, loop=self.bot.loop)
+                                    player.queue.append(result)
+                                    added += 1
+                                except:
+                                    continue
+                            
+                            if added > 0:
+                                # Send playlist embed instead of text message
+                                embed = create_playlist_embed(
+                                    playlist_name=spotify_data.get('name', 'Spotify Playlist'),
+                                    total_tracks=added,
+                                    total_duration=0,  # Spotify doesn't give total duration easily
+                                    remaining=added,
+                                    thumbnail=spotify_data.get('image')
+                                )
+                                await ctx.send(embed=embed)
+                                return
+                            else:
+                                return await ctx.send("❌ Could not find songs from Spotify link.")
+                        else:
+                            return await ctx.send(
+                                "❌ **Cannot access this playlist!**\n"
+                                "This might be a personalized/algorithmic playlist.\n"
+                                "Try a regular public Spotify playlist instead."
+                            )
                     else:
-                        return await ctx.send("❌ Could not find songs from Spotify link.")
+                        # It's a single track or album (list of queries)
+                        queries = spotify_data if isinstance(spotify_data, list) else [spotify_data]
+                        for search_query in queries:
+                            try:
+                                result = await YTDLSource.search(search_query, loop=self.bot.loop)
+                                player.queue.append(result)
+                            except:
+                                continue
+                        # No separate message for single track - Now Playing will show
+                        return
                 else:
-                    # No tracks returned - likely an algorithmic/private playlist
                     return await ctx.send(
                         "❌ **Cannot access this playlist!**\n"
-                        "This might be a personalized/algorithmic playlist (like 'Made For You' mixes).\n"
+                        "This might be a personalized/algorithmic playlist.\n"
                         "Try a regular public Spotify playlist instead."
                     )
             

@@ -157,20 +157,32 @@ class SpotifyHandler:
             playlist_id: Spotify playlist ID
         
         Returns:
-            List of search queries for YouTube
+            Dict with playlist info and tracks:
+            {
+                'name': playlist name,
+                'image': thumbnail URL,
+                'total': total tracks,
+                'tracks': list of search queries
+            }
         """
         if not self.is_available:
             print(f"⚠️ Spotify not available for playlist: {playlist_id}")
-            return []
+            return {'name': 'Unknown', 'image': None, 'total': 0, 'tracks': []}
         
         try:
             tracks = []
+            playlist_name = "Spotify Playlist"
+            playlist_image = None
             print(f"🔍 Fetching playlist: {playlist_id}")
             
-            # First try to get playlist info
+            # Get playlist info (name and image)
             try:
-                playlist_info = self.sp.playlist(playlist_id, fields='name,tracks.total')
-                print(f"📋 Playlist: {playlist_info.get('name', 'Unknown')}, Total tracks: {playlist_info.get('tracks', {}).get('total', 0)}")
+                playlist_info = self.sp.playlist(playlist_id, fields='name,images,tracks.total')
+                playlist_name = playlist_info.get('name', 'Spotify Playlist')
+                images = playlist_info.get('images', [])
+                if images:
+                    playlist_image = images[0].get('url')
+                print(f"📋 Playlist: {playlist_name}, Total tracks: {playlist_info.get('tracks', {}).get('total', 0)}")
             except Exception as e:
                 print(f"⚠️ Could not get playlist info: {e}")
             
@@ -183,7 +195,7 @@ class SpotifyHandler:
             
             if not results or 'items' not in results:
                 print(f"⚠️ No items in playlist response")
-                return []
+                return {'name': playlist_name, 'image': playlist_image, 'total': 0, 'tracks': []}
             
             while results:
                 for item in results.get('items', []):
@@ -212,16 +224,22 @@ class SpotifyHandler:
                 print(f"⚠️ No playable tracks found - this is likely an algorithmic/personalized playlist")
             else:
                 print(f"✅ Total tracks fetched: {len(tracks)}")
-            return tracks
+            
+            return {
+                'name': playlist_name,
+                'image': playlist_image,
+                'total': len(tracks),
+                'tracks': tracks
+            }
             
         except spotipy.exceptions.SpotifyException as e:
             print(f"❌ Spotify API error: {e}")
             if '404' in str(e):
                 print("   This might be a private or algorithmic playlist.")
-            return []
+            return {'name': 'Unknown', 'image': None, 'total': 0, 'tracks': []}
         except Exception as e:
             print(f"❌ Error fetching Spotify playlist: {e}")
-            return []
+            return {'name': 'Unknown', 'image': None, 'total': 0, 'tracks': []}
     
     async def get_album_tracks(self, album_id):
         """

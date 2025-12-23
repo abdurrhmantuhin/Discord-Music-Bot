@@ -1,147 +1,187 @@
 """
 Aesthetic Music Embeds for Discord Music Bot.
-Clean, minimal, premium design - no button controls.
+Clean, minimal, premium design.
+Supports: Playlist embeds and Single song embeds.
 """
 
 import discord
 from utils.messages import Colors
 
 
-def create_now_playing_embed(source, player, requester=None):
+def format_duration(seconds):
+    """Format duration in seconds to human-readable format."""
+    try:
+        seconds = int(seconds)
+        if seconds >= 3600:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            secs = seconds % 60
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        else:
+            minutes = seconds // 60
+            secs = seconds % 60
+            return f"{minutes}:{secs:02d}"
+    except:
+        return "—"
+
+
+def format_total_duration(seconds):
+    """Format total duration for playlists (e.g. '1h 42m')."""
+    try:
+        seconds = int(seconds)
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        
+        if hours > 0:
+            return f"{hours}h {minutes}m"
+        else:
+            return f"{minutes}m"
+    except:
+        return "—"
+
+
+# ============================================
+# Playlist Embed
+# ============================================
+
+def create_playlist_embed(playlist_name: str, total_tracks: int, total_duration: int, 
+                          remaining: int, thumbnail: str = None):
     """
-    Create an aesthetic Now Playing embed.
+    Create an embed for playlist playback.
     
-    Design:
-    - Minimal, clean layout
-    - Soft purple/violet theme
-    - No clutter, easy to read
+    Shows:
+    - Playlist name
+    - Total tracks
+    - Total duration
+    - Songs remaining
     
     Args:
-        source: The audio source with title, thumbnail, etc.
-        player: The MusicPlayer instance
-        requester: The user who requested the song (optional)
+        playlist_name: Name of the playlist
+        total_tracks: Total number of tracks
+        total_duration: Total duration in seconds
+        remaining: Songs remaining in queue
+        thumbnail: Playlist thumbnail URL
     
     Returns:
-        discord.Embed: Aesthetic Now Playing embed
+        discord.Embed
     """
-    
-    # Create embed with aesthetic color
     embed = discord.Embed(color=Colors.MUSIC)
+    embed.title = "Added Playlist"
     
-    # Title - Clean and simple
+    # Playlist name as main content
+    embed.add_field(name="Playlist", value=f"**{playlist_name}**", inline=False)
+    
+    # Thumbnail
+    if thumbnail:
+        embed.set_thumbnail(url=thumbnail)
+    
+    # Stats in one row
+    embed.add_field(name="Playlist Length", value=format_total_duration(total_duration), inline=True)
+    embed.add_field(name="Tracks", value=str(total_tracks), inline=True)
+    
+    # Footer
+    embed.set_footer(text="🎧 Enjoy the music💜!")
+    
+    return embed
+
+
+# ============================================
+# Now Playing Embed (for single songs during playback)
+# ============================================
+
+def create_now_playing_embed(source, player=None, requester=None, remaining: int = 0):
+    """
+    Create Now Playing embed for current track.
+    
+    For single songs: Shows song name + duration only
+    During playlist: Shows song + remaining count
+    
+    Args:
+        source: Audio source with title, duration, thumbnail
+        player: MusicPlayer instance (optional)
+        requester: User who requested (optional)
+        remaining: Songs remaining in queue
+    
+    Returns:
+        discord.Embed
+    """
+    embed = discord.Embed(color=Colors.MUSIC)
     embed.title = "Now Playing"
     
-    # Song info - Main content
+    # Song title
     song_title = source.title if hasattr(source, 'title') else "Unknown Track"
+    embed.description = f"**{song_title}**"
     
-    # Build description with clean formatting
-    description_parts = []
-    description_parts.append(f"**{song_title}**")
-    
-    # Add a subtle separator
-    embed.description = "\n".join(description_parts)
-    
-    # Thumbnail (album art)
+    # Thumbnail
     if hasattr(source, 'thumbnail') and source.thumbnail:
         embed.set_thumbnail(url=source.thumbnail)
     
-    # Duration - formatted nicely
+    # Duration
     if hasattr(source, 'duration') and source.duration:
-        try:
-            duration = int(source.duration)
-            if duration >= 3600:
-                hours = duration // 3600
-                minutes = (duration % 3600) // 60
-                seconds = duration % 60
-                duration_str = f"{hours}:{minutes:02d}:{seconds:02d}"
-            else:
-                minutes = duration // 60
-                seconds = duration % 60
-                duration_str = f"{minutes}:{seconds:02d}"
-        except:
-            duration_str = "—"
-        embed.add_field(name="Duration", value=duration_str, inline=True)
+        embed.add_field(name="Length", value=format_duration(source.duration), inline=True)
     
-    # Volume
-    volume_pct = int(player.volume * 100)
-    embed.add_field(name="Volume", value=f"{volume_pct}%", inline=True)
+    # Remaining songs (only show if there are more)
+    if remaining > 0:
+        embed.add_field(name="Remaining", value=f"{remaining} tracks", inline=True)
     
-    # Loop status
-    if player.loop:
-        loop_status = "Song"
-    elif player.loop_queue:
-        loop_status = "Queue"
-    else:
-        loop_status = "Off"
-    embed.add_field(name="Loop", value=loop_status, inline=True)
-    
-    # Footer - Subtle requester info
+    # Footer
     if requester:
-        embed.set_footer(
-            text=f"Requested by {requester.display_name}",
-            icon_url=requester.display_avatar.url if hasattr(requester, 'display_avatar') and requester.display_avatar else None
-        )
-    else:
-        embed.set_footer(text="Enjoy the music")
+        footer_text = f"Requested by {requester.display_name}"
+        icon_url = requester.display_avatar.url if hasattr(requester, 'display_avatar') and requester.display_avatar else None
+        embed.set_footer(text=footer_text, icon_url=icon_url)
     
     return embed
 
 
-def create_queue_embed(queue, current_song=None):
+# ============================================
+# Single Song Added Embed
+# ============================================
+
+def create_song_added_embed(title: str, duration: int = None, url: str = None, 
+                            thumbnail: str = None, position: int = None):
     """
-    Create an aesthetic queue embed.
+    Create embed when a single song is added to queue.
     
     Args:
-        queue: The song queue (deque or list)
-        current_song: Currently playing song info (optional)
+        title: Song title
+        duration: Song duration in seconds
+        url: Song URL
+        thumbnail: Thumbnail URL
+        position: Position in queue
     
     Returns:
-        discord.Embed: Aesthetic queue embed
+        discord.Embed
     """
-    embed = discord.Embed(
-        title="Queue",
-        color=Colors.MUSIC
-    )
+    embed = discord.Embed(color=Colors.MUSIC)
+    embed.title = "Added to Queue"
     
-    if not queue and not current_song:
-        embed.description = "*The queue is empty*"
-        return embed
+    # Song title with link if available
+    if url:
+        embed.description = f"**[{title}]({url})**"
+    else:
+        embed.description = f"**{title}**"
     
-    description_parts = []
+    # Thumbnail
+    if thumbnail:
+        embed.set_thumbnail(url=thumbnail)
     
-    # Current song
-    if current_song:
-        title = current_song.get('title', 'Unknown')[:45]
-        description_parts.append(f"**Now:** {title}")
-        description_parts.append("")
+    # Duration
+    if duration:
+        embed.add_field(name="Length", value=format_duration(duration), inline=True)
     
-    # Queue items (max 8)
-    queue_list = list(queue)[:8]
-    for i, song in enumerate(queue_list, 1):
-        title = song.get('title', 'Unknown')[:40]
-        description_parts.append(f"`{i}.` {title}")
-    
-    # More indicator
-    if len(queue) > 8:
-        description_parts.append(f"\n*+{len(queue) - 8} more tracks*")
-    
-    embed.description = "\n".join(description_parts) if description_parts else "*Empty*"
-    embed.set_footer(text=f"{len(queue)} tracks in queue")
+    # Position
+    if position:
+        embed.add_field(name="Position", value=f"#{position}", inline=True)
     
     return embed
 
+
+# ============================================
+# Status/Error Embeds
+# ============================================
 
 def create_status_embed(message: str, status_type: str = "info"):
-    """
-    Create a status/notification embed.
-    
-    Args:
-        message: The status message
-        status_type: "info", "success", "error", "warning"
-    
-    Returns:
-        discord.Embed: Status embed
-    """
+    """Create a status embed."""
     color_map = {
         "info": Colors.INFO,
         "success": Colors.SUCCESS,
@@ -149,9 +189,7 @@ def create_status_embed(message: str, status_type: str = "info"):
         "warning": Colors.WARNING
     }
     
-    embed = discord.Embed(
+    return discord.Embed(
         description=message,
         color=color_map.get(status_type, Colors.INFO)
     )
-    
-    return embed
