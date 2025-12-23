@@ -19,6 +19,7 @@ from config import (
 )
 from utils.ytdl import YTDLSource
 from utils.spotify import SpotifyHandler
+from utils.buttons import MusicControlView, create_now_playing_embed
 
 
 class MusicPlayer:
@@ -118,22 +119,27 @@ class MusicPlayer:
                     after=lambda e: self.bot.loop.call_soon_threadsafe(self.next.set)
                 )
                 
-                # Send now playing message (simple embed)
-                embed = discord.Embed(
-                    title="🎵 Now Playing",
-                    description=f"[{source.title}]({source.webpage_url})",
-                    color=EMBED_COLOR
-                )
-                if source.thumbnail:
-                    embed.set_thumbnail(url=source.thumbnail)
-                if source.duration:
-                    embed.add_field(
-                        name="Duration",
-                        value=YTDLSource.format_duration(source.duration),
-                        inline=True
-                    )
+                # Send now playing message with button controls
+                # Create a fake context for the view (using channel info)
+                class FakeCtx:
+                    def __init__(self, bot, guild, channel, voice_client):
+                        self.bot = bot
+                        self.guild = guild
+                        self.channel = channel
+                        self.voice_client = voice_client
                 
-                await self.channel.send(embed=embed)
+                fake_ctx = FakeCtx(self.bot, self.guild, self.channel, self.guild.voice_client)
+                view = MusicControlView(fake_ctx, self, self.cog, timeout=None)
+                
+                # Get requester from current song data
+                requester = self.current.get('requester', None) if self.current else None
+                
+                # Create enhanced embed
+                embed = create_now_playing_embed(source, self, requester)
+                
+                # Send and store message reference
+                msg = await self.channel.send(embed=embed, view=view)
+                view.message = msg
                 
             except AttributeError:
                 # Voice client was disconnected, exit silently (handled by on_voice_state_update if kick)
