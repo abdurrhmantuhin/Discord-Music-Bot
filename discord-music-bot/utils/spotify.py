@@ -125,29 +125,61 @@ class SpotifyHandler:
             List of search queries for YouTube
         """
         if not self.is_available:
+            print(f"⚠️ Spotify not available for playlist: {playlist_id}")
             return []
         
         try:
             tracks = []
-            results = self.sp.playlist_tracks(playlist_id)
+            print(f"🔍 Fetching playlist: {playlist_id}")
+            
+            # First try to get playlist info
+            try:
+                playlist_info = self.sp.playlist(playlist_id, fields='name,tracks.total')
+                print(f"📋 Playlist: {playlist_info.get('name', 'Unknown')}, Total tracks: {playlist_info.get('tracks', {}).get('total', 0)}")
+            except Exception as e:
+                print(f"⚠️ Could not get playlist info: {e}")
+            
+            # Get tracks
+            results = self.sp.playlist_tracks(
+                playlist_id,
+                fields='items(track(name,artists(name))),next',
+                limit=100
+            )
+            
+            if not results or 'items' not in results:
+                print(f"⚠️ No items in playlist response")
+                return []
             
             while results:
-                for item in results['items']:
+                for item in results.get('items', []):
                     track = item.get('track')
-                    if track:
-                        artist = track['artists'][0]['name']
-                        title = track['name']
-                        tracks.append(f"{artist} - {title}")
+                    if track and track.get('name'):
+                        artists = track.get('artists', [])
+                        if artists:
+                            artist = artists[0].get('name', 'Unknown')
+                        else:
+                            artist = 'Unknown'
+                        title = track.get('name', 'Unknown')
+                        search_query = f"{artist} - {title}"
+                        tracks.append(search_query)
+                        print(f"  ✓ Added: {search_query}")
                 
                 # Get next page if exists
-                if results['next']:
+                if results.get('next'):
                     results = self.sp.next(results)
                 else:
                     break
             
+            print(f"✅ Total tracks fetched: {len(tracks)}")
             return tracks
+            
+        except spotipy.exceptions.SpotifyException as e:
+            print(f"❌ Spotify API error: {e}")
+            if '404' in str(e):
+                print("   This might be a private or algorithmic playlist.")
+            return []
         except Exception as e:
-            print(f"Error fetching Spotify playlist: {e}")
+            print(f"❌ Error fetching Spotify playlist: {e}")
             return []
     
     async def get_album_tracks(self, album_id):
