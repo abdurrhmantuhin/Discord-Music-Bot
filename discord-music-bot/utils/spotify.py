@@ -5,12 +5,14 @@ Extracts track information from Spotify links for playback via YouTube.
 
 import re
 import os
+
 try:
     import spotipy
     from spotipy.oauth2 import SpotifyClientCredentials
     SPOTIPY_AVAILABLE = True
 except ImportError:
     SPOTIPY_AVAILABLE = False
+    print("⚠️  Spotipy not installed. Spotify links will not work.")
 
 
 class SpotifyHandler:
@@ -20,16 +22,28 @@ class SpotifyHandler:
     """
     
     def __init__(self):
-        """Initialize Spotify client if credentials are available."""
+        """Initialize Spotify client (lazy initialization)."""
         self.sp = None
         self._initialized = False
+        self._init_attempted = False
+    
+    def _ensure_initialized(self):
+        """Lazy initialization of Spotify client."""
+        if self._init_attempted:
+            return self._initialized
+        
+        self._init_attempted = True
         
         if not SPOTIPY_AVAILABLE:
-            print("⚠️  Spotipy not installed. Spotify links will not work.")
-            return
+            print("⚠️  Spotipy not available.")
+            return False
         
         client_id = os.getenv('SPOTIFY_CLIENT_ID')
         client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+        
+        # Debug: Print what we got (masked)
+        print(f"🔍 Spotify Client ID: {'*' * 8 + client_id[-4:] if client_id else 'NOT SET'}")
+        print(f"🔍 Spotify Client Secret: {'*' * 8 + client_secret[-4:] if client_secret else 'NOT SET'}")
         
         if client_id and client_secret:
             try:
@@ -38,17 +52,22 @@ class SpotifyHandler:
                     client_secret=client_secret
                 )
                 self.sp = spotipy.Spotify(auth_manager=auth_manager)
+                # Test the connection
+                self.sp.search(q='test', limit=1)
                 self._initialized = True
                 print("✅ Spotify integration initialized!")
+                return True
             except Exception as e:
                 print(f"⚠️  Spotify initialization failed: {e}")
+                return False
         else:
-            print("⚠️  Spotify credentials not found. Spotify links will search YouTube directly.")
+            print("⚠️  Spotify credentials not found in environment variables.")
+            return False
     
     @property
     def is_available(self):
         """Check if Spotify API is available."""
-        return self._initialized and self.sp is not None
+        return self._ensure_initialized() and self.sp is not None
     
     def extract_spotify_id(self, url):
         """
