@@ -29,14 +29,18 @@ def format_total_duration(seconds):
     """Format total duration for playlists (e.g. '1h 42m')."""
     try:
         seconds = int(seconds)
+        if seconds <= 0:
+            return "—"  # Show dash when duration unavailable
         hours = seconds // 3600
         minutes = (seconds % 3600) // 60
         
         if hours > 0:
             return f"{hours}h {minutes}m"
-        else:
+        elif minutes > 0:
             return f"{minutes}m"
-    except:
+        else:
+            return "<1m"
+    except (TypeError, ValueError):
         return "—"
 
 
@@ -75,12 +79,13 @@ def create_playlist_embed(playlist_name: str, total_tracks: int, total_duration:
     if thumbnail:
         embed.set_thumbnail(url=thumbnail)
     
-    # Stats in one row
-    embed.add_field(name="Playlist Length", value=format_total_duration(total_duration), inline=True)
+    # Stats in one row (only show length if available)
+    if total_duration and total_duration > 0:
+        embed.add_field(name="Playlist Length", value=format_total_duration(total_duration), inline=True)
     embed.add_field(name="Tracks", value=str(total_tracks), inline=True)
     
     # Footer
-    embed.set_footer(text="🎧 Enjoy the music💜!")
+    embed.set_footer(text="Enjoy the music!")
     
     return embed
 
@@ -124,11 +129,13 @@ def create_now_playing_embed(source, player=None, requester=None, remaining: int
     if remaining > 0:
         embed.add_field(name="Remaining", value=f"{remaining} tracks", inline=True)
     
-    # Footer
+    # Footer - consistent behavior
     if requester:
         footer_text = f"Requested by {requester.display_name}"
         icon_url = requester.display_avatar.url if hasattr(requester, 'display_avatar') and requester.display_avatar else None
         embed.set_footer(text=footer_text, icon_url=icon_url)
+    else:
+        embed.set_footer(text="Enjoy the music!")
     
     return embed
 
@@ -165,13 +172,16 @@ def create_song_added_embed(title: str, duration: int = None, url: str = None,
     if thumbnail:
         embed.set_thumbnail(url=thumbnail)
     
-    # Duration
-    if duration:
+    # Duration - check for None explicitly (0 is valid)
+    if duration is not None:
         embed.add_field(name="Length", value=format_duration(duration), inline=True)
     
-    # Position
-    if position:
+    # Position - check for None explicitly (position 1 should show)
+    if position is not None and position >= 1:
         embed.add_field(name="Position", value=f"#{position}", inline=True)
+    
+    # Footer
+    embed.set_footer(text="Enjoy the music!")
     
     return embed
 
@@ -189,7 +199,11 @@ def create_status_embed(message: str, status_type: str = "info"):
         "warning": Colors.WARNING
     }
     
+    # Safe color lookup with fallback
+    color = getattr(Colors, 'INFO', 0x6366F1)  # Fallback to soft indigo
+    color = color_map.get(status_type, color)
+    
     return discord.Embed(
         description=message,
-        color=color_map.get(status_type, Colors.INFO)
+        color=color
     )
