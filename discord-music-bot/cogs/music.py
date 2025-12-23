@@ -262,8 +262,12 @@ class Music(commands.Cog):
                     else:
                         return await ctx.send("❌ Could not find songs from Spotify link.")
                 else:
-                    # Fallback: try searching the query on YouTube
-                    pass  # Will fall through to YouTube search below
+                    # No tracks returned - likely an algorithmic/private playlist
+                    return await ctx.send(
+                        "❌ **Cannot access this playlist!**\n"
+                        "This might be a personalized/algorithmic playlist (like 'Made For You' mixes).\n"
+                        "Try a regular public Spotify playlist instead."
+                    )
             
             # YouTube URL or search query
             if YTDLSource.is_url(query):

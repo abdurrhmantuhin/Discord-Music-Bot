@@ -153,6 +153,10 @@ class SpotifyHandler:
             while results:
                 for item in results.get('items', []):
                     track = item.get('track')
+                    # Algorithmic playlists often have null tracks
+                    if track is None:
+                        print(f"  ⚠️ Track is null (algorithmic playlist)")
+                        continue
                     if track and track.get('name'):
                         artists = track.get('artists', [])
                         if artists:
@@ -162,7 +166,6 @@ class SpotifyHandler:
                         title = track.get('name', 'Unknown')
                         search_query = f"{artist} - {title}"
                         tracks.append(search_query)
-                        print(f"  ✓ Added: {search_query}")
                 
                 # Get next page if exists
                 if results.get('next'):
@@ -170,7 +173,10 @@ class SpotifyHandler:
                 else:
                     break
             
-            print(f"✅ Total tracks fetched: {len(tracks)}")
+            if not tracks:
+                print(f"⚠️ No playable tracks found - this is likely an algorithmic/personalized playlist")
+            else:
+                print(f"✅ Total tracks fetched: {len(tracks)}")
             return tracks
             
         except spotipy.exceptions.SpotifyException as e:
