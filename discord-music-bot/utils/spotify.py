@@ -48,10 +48,21 @@ class SpotifyHandler:
         current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         cache_path = os.path.join(current_dir, ".spotify_cache")
         
-        print(f"Looking for Spotify cache at: {cache_path}")
+        # Debug logging for Railway deployment
+        print(f"DEBUG: __file__ = {__file__}")
+        print(f"DEBUG: current_dir = {current_dir}")
+        print(f"DEBUG: cache_path = {cache_path}")
+        print(f"DEBUG: cache file exists = {os.path.exists(cache_path)}")
+        
+        # List files in current_dir to see what's actually there
+        try:
+            files_in_dir = os.listdir(current_dir)
+            print(f"DEBUG: Files in {current_dir}: {[f for f in files_in_dir if not f.startswith('__')]}")
+        except Exception as e:
+            print(f"DEBUG: Could not list dir: {e}")
         
         # Debug: Print what we got (masked)
-        print(f"🔍 Spotify Client ID: {'*' * 8 + client_id[-4:] if client_id else 'NOT SET'}")
+        print(f"Spotify Client ID: {'*' * 8 + client_id[-4:] if client_id else 'NOT SET'}")
         
         if client_id and client_secret:
             try:
