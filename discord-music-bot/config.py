@@ -19,6 +19,11 @@ BOT_PREFIX = '!'
 # ============================================
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
+SPOTIFY_REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:8888/callback')
+
+# Spotify OAuth Scopes
+SPOTIFY_SCOPE = "user-library-read playlist-read-private playlist-read-collaborative user-top-read"
+SPOTIFY_CACHE_PATH = ".spotify_cache"
 
 # ============================================
 # YT-DLP Configuration

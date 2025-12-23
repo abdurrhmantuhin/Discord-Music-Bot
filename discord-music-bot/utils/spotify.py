@@ -8,7 +8,8 @@ import os
 
 try:
     import spotipy
-    from spotipy.oauth2 import SpotifyClientCredentials
+    import spotipy
+    from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
     SPOTIPY_AVAILABLE = True
 except ImportError:
     SPOTIPY_AVAILABLE = False
@@ -40,17 +41,35 @@ class SpotifyHandler:
         
         client_id = os.getenv('SPOTIFY_CLIENT_ID')
         client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
+        redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI', 'http://localhost:8888/callback')
+        scope = "user-library-read playlist-read-private playlist-read-collaborative user-top-read"
+        cache_path = ".spotify_cache"
         
         # Debug: Print what we got (masked)
         print(f"🔍 Spotify Client ID: {'*' * 8 + client_id[-4:] if client_id else 'NOT SET'}")
-        print(f"🔍 Spotify Client Secret: {'*' * 8 + client_secret[-4:] if client_secret else 'NOT SET'}")
         
         if client_id and client_secret:
             try:
-                auth_manager = SpotifyClientCredentials(
-                    client_id=client_id,
-                    client_secret=client_secret
-                )
+                # FIRST TRY: OAuth (if token cache exists)
+                # This allows accessing private/personalized playlists
+                if os.path.exists(cache_path):
+                    print("Found cached Spotify token! Attempting to use user authentication...")
+                    auth_manager = SpotifyOAuth(
+                        client_id=client_id,
+                        client_secret=client_secret,
+                        redirect_uri=redirect_uri,
+                        scope=scope,
+                        cache_path=cache_path,
+                        open_browser=False  # Don't open browser on server
+                    )
+                else:
+                    # FALLBACK: Client Credentials (public only)
+                    print("No cached token found. Using App authentication (Public playlists only).")
+                    auth_manager = SpotifyClientCredentials(
+                        client_id=client_id,
+                        client_secret=client_secret
+                    )
+                
                 self.sp = spotipy.Spotify(auth_manager=auth_manager)
                 # Test the connection
                 self.sp.search(q='test', limit=1)
