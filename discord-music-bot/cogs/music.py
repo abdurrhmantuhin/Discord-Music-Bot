@@ -74,6 +74,12 @@ class MusicPlayer:
                             # Check if stopped before waiting
                             if self.stopped:
                                 return self.destroy(self.guild, intentional=True)
+                            # Ensure we are not sending any audio data (fix for green circle)
+                            if self.guild.voice_client and self.guild.voice_client.is_connected():
+                                # Only stop if we are truly idle (not playing and not paused)
+                                if not self.guild.voice_client.is_playing() and not self.guild.voice_client.is_paused():
+                                    self.guild.voice_client.stop()
+                            
                             # Wait for songs to be added
                             await asyncio.sleep(2)
                             # Check if stopped again after sleep
