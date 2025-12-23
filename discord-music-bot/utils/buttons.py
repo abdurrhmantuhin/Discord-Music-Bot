@@ -336,9 +336,21 @@ def create_now_playing_embed(source, player, requester=None):
     
     # Duration
     if source.duration:
-        from utils.ytdl import YTDLSource
-        duration_str = YTDLSource.format_duration(source.duration)
-        embed.add_field(name="⏱️ Duration", value=duration_str, inline=True)
+        try:
+            # Format duration as MM:SS or HH:MM:SS
+            duration = int(source.duration)
+            if duration >= 3600:
+                hours = duration // 3600
+                minutes = (duration % 3600) // 60
+                seconds = duration % 60
+                duration_str = f"{hours}:{minutes:02d}:{seconds:02d}"
+            else:
+                minutes = duration // 60
+                seconds = duration % 60
+                duration_str = f"{minutes}:{seconds:02d}"
+            embed.add_field(name="⏱️ Duration", value=duration_str, inline=True)
+        except:
+            embed.add_field(name="⏱️ Duration", value="Unknown", inline=True)
     
     # Volume
     embed.add_field(name="🔊 Volume", value=f"{int(player.volume * 100)}%", inline=True)

@@ -120,26 +120,40 @@ class MusicPlayer:
                 )
                 
                 # Send now playing message with button controls
-                # Create a fake context for the view (using channel info)
-                class FakeCtx:
-                    def __init__(self, bot, guild, channel, voice_client):
-                        self.bot = bot
-                        self.guild = guild
-                        self.channel = channel
-                        self.voice_client = voice_client
-                
-                fake_ctx = FakeCtx(self.bot, self.guild, self.channel, self.guild.voice_client)
-                view = MusicControlView(fake_ctx, self, self.cog, timeout=None)
-                
-                # Get requester from current song data
-                requester = self.current.get('requester', None) if self.current else None
-                
-                # Create enhanced embed
-                embed = create_now_playing_embed(source, self, requester)
-                
-                # Send and store message reference
-                msg = await self.channel.send(embed=embed, view=view)
-                view.message = msg
+                # Separate try-catch for button view to prevent playback issues
+                try:
+                    # Create a context-like object for the view
+                    class FakeCtx:
+                        def __init__(self, bot, guild, channel, voice_client):
+                            self.bot = bot
+                            self.guild = guild
+                            self.channel = channel
+                            self.voice_client = voice_client
+                    
+                    fake_ctx = FakeCtx(self.bot, self.guild, self.channel, self.guild.voice_client)
+                    view = MusicControlView(fake_ctx, self, self.cog, timeout=None)
+                    
+                    # Get requester from current song data
+                    requester = self.current.get('requester', None) if self.current else None
+                    
+                    # Create enhanced embed
+                    embed = create_now_playing_embed(source, self, requester)
+                    
+                    # Send and store message reference
+                    msg = await self.channel.send(embed=embed, view=view)
+                    view.message = msg
+                    
+                except Exception as view_error:
+                    # If button view fails, send simple embed without buttons
+                    print(f"Button view error: {view_error}")
+                    embed = discord.Embed(
+                        title="🎵 Now Playing",
+                        description=f"**{source.title}**",
+                        color=0x1DB954
+                    )
+                    if source.thumbnail:
+                        embed.set_thumbnail(url=source.thumbnail)
+                    await self.channel.send(embed=embed)
                 
             except AttributeError:
                 # Voice client was disconnected, exit silently (handled by on_voice_state_update if kick)
