@@ -50,11 +50,12 @@ async def on_ready():
     print(f"🔧 Prefix: {BOT_PREFIX}")
     print("=" * 50)
     
-    # Set bot status
+    # Set bot status (DND = red)
     await bot.change_presence(
+        status=discord.Status.dnd,
         activity=discord.Activity(
             type=discord.ActivityType.listening,
-            name=f"{BOT_PREFIX}help | Music"
+            name="✨ !play | Vibely Music"
         )
     )
     
