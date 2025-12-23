@@ -39,6 +39,7 @@ class MusicPlayer:
         self.volume = DEFAULT_VOLUME
         self.loop = False
         self.loop_queue = False
+        self.stopped = False  # Flag to completely stop the player
         
         ctx.bot.loop.create_task(self.player_loop())
     
@@ -47,6 +48,10 @@ class MusicPlayer:
         await self.bot.wait_until_ready()
         
         while not self.bot.is_closed():
+            # Check if stopped flag is set
+            if self.stopped:
+                return self.destroy(self.guild)
+            
             self.next.clear()
             
             # Check if we're still connected to voice
@@ -55,7 +60,7 @@ class MusicPlayer:
                 return self.destroy(self.guild)
             
             if self.loop and self.current:
-                # Re-add current song if looping
+                # Re-add current song if looping - don't pop from queue
                 pass
             elif self.loop_queue and self.current:
                 # Add current song back to end of queue
@@ -66,16 +71,22 @@ class MusicPlayer:
                 async with asyncio.timeout(DISCONNECT_TIMEOUT):
                     if not self.loop or not self.current:
                         if not self.queue:
+                            # Check if stopped before waiting
+                            if self.stopped:
+                                return self.destroy(self.guild)
                             # Wait for songs to be added
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(2)
+                            # Check if stopped again after sleep
+                            if self.stopped or not self.guild.voice_client:
+                                return self.destroy(self.guild)
                             continue
                         self.current = self.queue.popleft()
             except asyncio.TimeoutError:
                 # Disconnect after timeout (silently)
                 return self.destroy(self.guild)
             
-            # Double check voice connection before playing
-            if not self.guild.voice_client or not self.guild.voice_client.is_connected():
+            # Double check stopped flag and voice connection before playing
+            if self.stopped or not self.guild.voice_client or not self.guild.voice_client.is_connected():
                 return self.destroy(self.guild)
             
             try:
@@ -92,7 +103,7 @@ class MusicPlayer:
                     continue
                 
                 # Final check before playing
-                if not self.guild.voice_client:
+                if self.stopped or not self.guild.voice_client:
                     return self.destroy(self.guild)
                 
                 self.guild.voice_client.play(
@@ -228,89 +239,89 @@ class Music(commands.Cog):
         if len(player.queue) >= MAX_QUEUE_SIZE:
             return await ctx.send(f"❌ Queue is full! (Max: {MAX_QUEUE_SIZE})")
         
-        async with ctx.typing():
-            try:
-                # Check if it's a Spotify URL
-                if 'spotify.com' in query:
-                    # No "processing" message - just do it silently
-                    queries = await self.spotify.process_spotify_url(query)
-                    
-                    if queries:
-                        added = 0
-                        for search_query in queries:
-                            try:
-                                result = await YTDLSource.search(search_query, loop=self.bot.loop)
-                                player.queue.append(result)
-                                added += 1
-                            except:
-                                continue
-                        
-                        if added > 0:
-                            await ctx.send(f"✅ Added **{added}** song(s) to queue!")
-                            return
-                        else:
-                            return await ctx.send("❌ Could not find songs from Spotify link.")
-                    else:
-                        # Fallback: try searching the query on YouTube
-                        pass  # Will fall through to YouTube search below
+        # Process the query (no typing indicator to avoid continuous typing)
+        try:
+            # Check if it's a Spotify URL
+            if 'spotify.com' in query:
+                # No "processing" message - just do it silently
+                queries = await self.spotify.process_spotify_url(query)
                 
-                # YouTube URL or search query
-                if YTDLSource.is_url(query):
-                    # Direct URL
-                    result = await YTDLSource.from_url(query, loop=self.bot.loop, stream=True)
+                if queries:
+                    added = 0
+                    for search_query in queries:
+                        try:
+                            result = await YTDLSource.search(search_query, loop=self.bot.loop)
+                            player.queue.append(result)
+                            added += 1
+                        except:
+                            continue
                     
-                    if isinstance(result, list):
-                        # It's a playlist
-                        for song in result:
-                            if len(player.queue) < MAX_QUEUE_SIZE:
-                                player.queue.append(song)
-                        
-                        await ctx.send(f"✅ Added **{len(result)}** songs from playlist to the queue!")
+                    if added > 0:
+                        await ctx.send(f"✅ Added **{added}** song(s) to queue!")
+                        return
                     else:
-                        # Single song - create source and add to queue
-                        song_data = {
-                            'title': result.title,
-                            'webpage_url': result.webpage_url,
-                            'duration': result.duration,
-                            'thumbnail': result.thumbnail,
-                            'uploader': result.uploader
-                        }
-                        player.queue.append(song_data)
-                        
-                        embed = discord.Embed(
-                            title="✅ Added to Queue",
-                            description=f"[{result.title}]({result.webpage_url})",
-                            color=SUCCESS_COLOR
-                        )
-                        embed.add_field(name="Position", value=len(player.queue), inline=True)
-                        if result.duration:
-                            embed.add_field(
-                                name="Duration",
-                                value=YTDLSource.format_duration(result.duration),
-                                inline=True
-                            )
-                        await ctx.send(embed=embed)
+                        return await ctx.send("❌ Could not find songs from Spotify link.")
                 else:
-                    # Search query
-                    result = await YTDLSource.search(query, loop=self.bot.loop)
-                    player.queue.append(result)
+                    # Fallback: try searching the query on YouTube
+                    pass  # Will fall through to YouTube search below
+            
+            # YouTube URL or search query
+            if YTDLSource.is_url(query):
+                # Direct URL
+                result = await YTDLSource.from_url(query, loop=self.bot.loop, stream=True)
+                
+                if isinstance(result, list):
+                    # It's a playlist
+                    for song in result:
+                        if len(player.queue) < MAX_QUEUE_SIZE:
+                            player.queue.append(song)
+                    
+                    await ctx.send(f"✅ Added **{len(result)}** songs to queue!")
+                else:
+                    # Single song - create source and add to queue
+                    song_data = {
+                        'title': result.title,
+                        'webpage_url': result.webpage_url,
+                        'duration': result.duration,
+                        'thumbnail': result.thumbnail,
+                        'uploader': result.uploader
+                    }
+                    player.queue.append(song_data)
                     
                     embed = discord.Embed(
                         title="✅ Added to Queue",
-                        description=f"[{result['title']}]({result['webpage_url']})",
+                        description=f"[{result.title}]({result.webpage_url})",
                         color=SUCCESS_COLOR
                     )
                     embed.add_field(name="Position", value=len(player.queue), inline=True)
-                    if result.get('duration'):
+                    if result.duration:
                         embed.add_field(
                             name="Duration",
-                            value=YTDLSource.format_duration(result['duration']),
+                            value=YTDLSource.format_duration(result.duration),
                             inline=True
                         )
                     await ctx.send(embed=embed)
-                    
-            except Exception as e:
-                await ctx.send(f"❌ Error: {str(e)}")
+            else:
+                # Search query
+                result = await YTDLSource.search(query, loop=self.bot.loop)
+                player.queue.append(result)
+                
+                embed = discord.Embed(
+                    title="✅ Added to Queue",
+                    description=f"[{result['title']}]({result['webpage_url']})",
+                    color=SUCCESS_COLOR
+                )
+                embed.add_field(name="Position", value=len(player.queue), inline=True)
+                if result.get('duration'):
+                    embed.add_field(
+                        name="Duration",
+                        value=YTDLSource.format_duration(result['duration']),
+                        inline=True
+                    )
+                await ctx.send(embed=embed)
+                
+        except Exception as e:
+            await ctx.send(f"❌ Error: {str(e)}")
     
     @commands.command(name='pause')
     async def pause(self, ctx):
@@ -337,12 +348,22 @@ class Music(commands.Cog):
             return await ctx.send("❌ I'm not playing anything!")
         
         player = self.get_player(ctx)
+        
+        # Set stopped flag FIRST to prevent player loop from continuing
+        player.stopped = True
         player.queue.clear()
         player.current = None
         player.loop = False
+        player.loop_queue = False  # Reset queue loop too!
         
-        if ctx.voice_client.is_playing():
+        if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
             ctx.voice_client.stop()
+        
+        # Remove the player completely to prevent any ghost playback
+        try:
+            del self.players[ctx.guild.id]
+        except KeyError:
+            pass
         
         await ctx.send("⏹️ Stopped and cleared the queue!")
     
