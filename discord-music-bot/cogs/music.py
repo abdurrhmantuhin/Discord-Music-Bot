@@ -49,6 +49,11 @@ class MusicPlayer:
         while not self.bot.is_closed():
             self.next.clear()
             
+            # Check if we're still connected to voice
+            if not self.guild.voice_client or not self.guild.voice_client.is_connected():
+                # Bot was disconnected, cleanup silently
+                return self.destroy(self.guild)
+            
             if self.loop and self.current:
                 # Re-add current song if looping
                 pass
@@ -66,7 +71,11 @@ class MusicPlayer:
                             continue
                         self.current = self.queue.popleft()
             except asyncio.TimeoutError:
-                # Disconnect after timeout
+                # Disconnect after timeout (silently)
+                return self.destroy(self.guild)
+            
+            # Double check voice connection before playing
+            if not self.guild.voice_client or not self.guild.voice_client.is_connected():
                 return self.destroy(self.guild)
             
             try:
@@ -82,12 +91,16 @@ class MusicPlayer:
                     # It's a playlist, shouldn't happen here
                     continue
                 
+                # Final check before playing
+                if not self.guild.voice_client:
+                    return self.destroy(self.guild)
+                
                 self.guild.voice_client.play(
                     source,
                     after=lambda e: self.bot.loop.call_soon_threadsafe(self.next.set)
                 )
                 
-                # Send now playing message
+                # Send now playing message (simple embed)
                 embed = discord.Embed(
                     title="🎵 Now Playing",
                     description=f"[{source.title}]({source.webpage_url})",
@@ -101,13 +114,16 @@ class MusicPlayer:
                         value=YTDLSource.format_duration(source.duration),
                         inline=True
                     )
-                if source.uploader:
-                    embed.add_field(name="Uploader", value=source.uploader, inline=True)
                 
                 await self.channel.send(embed=embed)
                 
+            except AttributeError:
+                # Voice client was disconnected, exit silently
+                return self.destroy(self.guild)
             except Exception as e:
-                await self.channel.send(f"❌ Error playing song: {str(e)}")
+                # Only send error if still connected
+                if self.guild.voice_client and self.guild.voice_client.is_connected():
+                    await self.channel.send(f"❌ Error: {str(e)[:50]}")
                 self.current = None
                 continue
             
@@ -158,21 +174,25 @@ class Music(commands.Cog):
     # ============================================
     
     @commands.command(name='join', aliases=['connect', 'j'])
-    async def join(self, ctx):
+    async def join(self, ctx, silent=False):
         """Join your voice channel."""
         if not ctx.author.voice:
-            return await ctx.send("❌ You need to be in a voice channel!")
+            if not silent:
+                return await ctx.send("❌ You need to be in a voice channel!")
+            return
         
         channel = ctx.author.voice.channel
         
         if ctx.voice_client:
             if ctx.voice_client.channel == channel:
-                return await ctx.send("✅ Already in your voice channel!")
+                return  # Already in channel, no message needed
             await ctx.voice_client.move_to(channel)
         else:
             await channel.connect()
         
-        await ctx.send(f"🎵 Joined **{channel.name}**!")
+        # Only send join message if explicitly called (not silent)
+        if not silent and ctx.invoked_with in ['join', 'connect', 'j']:
+            await ctx.send(f"🎵 Joined **{channel.name}**!")
     
     @commands.command(name='leave', aliases=['disconnect', 'dc', 'bye'])
     async def leave(self, ctx):
@@ -201,7 +221,7 @@ class Music(commands.Cog):
             return await ctx.send("❌ You need to be in a voice channel!")
         
         if not ctx.voice_client:
-            await ctx.invoke(self.join)
+            await ctx.invoke(self.join, silent=True)
         
         player = self.get_player(ctx)
         
@@ -212,8 +232,7 @@ class Music(commands.Cog):
             try:
                 # Check if it's a Spotify URL
                 if 'spotify.com' in query:
-                    await ctx.send("🔍 Processing Spotify link...")
-                    
+                    # No "processing" message - just do it silently
                     queries = await self.spotify.process_spotify_url(query)
                     
                     if queries:
@@ -227,13 +246,13 @@ class Music(commands.Cog):
                                 continue
                         
                         if added > 0:
-                            await ctx.send(f"✅ Added **{added}** song(s) from Spotify to the queue!")
+                            await ctx.send(f"✅ Added **{added}** song(s) to queue!")
                             return
                         else:
-                            return await ctx.send("❌ Could not find any songs from that Spotify link.")
+                            return await ctx.send("❌ Could not find songs from Spotify link.")
                     else:
-                        # Fallback: search YouTube with the Spotify URL path
-                        await ctx.send("⚠️ Spotify API not configured. Trying YouTube search...")
+                        # Fallback: try searching the query on YouTube
+                        pass  # Will fall through to YouTube search below
                 
                 # YouTube URL or search query
                 if YTDLSource.is_url(query):
