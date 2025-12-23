@@ -50,7 +50,8 @@ class MusicPlayer:
         while not self.bot.is_closed():
             # Check if stopped flag is set
             if self.stopped:
-                return self.destroy(self.guild)
+            if self.stopped:
+                return self.destroy(self.guild, intentional=True)
             
             self.next.clear()
             
@@ -73,21 +74,25 @@ class MusicPlayer:
                         if not self.queue:
                             # Check if stopped before waiting
                             if self.stopped:
-                                return self.destroy(self.guild)
+                            if self.stopped:
+                                return self.destroy(self.guild, intentional=True)
                             # Wait for songs to be added
                             await asyncio.sleep(2)
                             # Check if stopped again after sleep
                             if self.stopped or not self.guild.voice_client:
-                                return self.destroy(self.guild)
+                            if self.stopped or not self.guild.voice_client:
+                                return self.destroy(self.guild, intentional=True if self.stopped else False)
                             continue
                         self.current = self.queue.popleft()
             except asyncio.TimeoutError:
                 # Disconnect after timeout (silently)
-                return self.destroy(self.guild)
+                # This is "intentional" from the bot's perspective (timeout)
+                return self.destroy(self.guild, intentional=True)
             
             # Double check stopped flag and voice connection before playing
             if self.stopped or not self.guild.voice_client or not self.guild.voice_client.is_connected():
-                return self.destroy(self.guild)
+                if self.stopped or not self.guild.voice_client or not self.guild.voice_client.is_connected():
+                return self.destroy(self.guild, intentional=True if self.stopped else False)
             
             try:
                 # Create audio source
@@ -104,7 +109,8 @@ class MusicPlayer:
                 
                 # Final check before playing
                 if self.stopped or not self.guild.voice_client:
-                    return self.destroy(self.guild)
+                if self.stopped or not self.guild.voice_client:
+                    return self.destroy(self.guild, intentional=True if self.stopped else False)
                 
                 self.guild.voice_client.play(
                     source,
@@ -129,8 +135,8 @@ class MusicPlayer:
                 await self.channel.send(embed=embed)
                 
             except AttributeError:
-                # Voice client was disconnected, exit silently
-                return self.destroy(self.guild)
+                # Voice client was disconnected, exit silently (handled by on_voice_state_update if kick)
+                return self.destroy(self.guild, intentional=False)
             except Exception as e:
                 # Only send error if still connected
                 if self.guild.voice_client and self.guild.voice_client.is_connected():
@@ -143,9 +149,10 @@ class MusicPlayer:
             if not self.loop:
                 self.current = None
     
-    def destroy(self, guild):
+    def destroy(self, guild, intentional=False):
         """Disconnect and cleanup."""
-        return self.bot.loop.create_task(self.cog.cleanup(guild))
+        # Note: If intentional, the cog's cleanup will mark it as such
+        return self.bot.loop.create_task(self.cog.cleanup(guild, intentional=intentional))
 
 
 class Music(commands.Cog):
@@ -157,9 +164,48 @@ class Music(commands.Cog):
         self.bot = bot
         self.players = {}
         self.spotify = SpotifyHandler()
+        self.intentional_disconnects = set()
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        """
+        Listen for voice state updates to handle 'kick' events.
+        If the bot is disconnected and it wasn't intentional, send a message.
+        """
+        if member.id != self.bot.user.id:
+            return
+        
+        # Check if bot was disconnected
+        if before.channel and after.channel is None:
+            guild_id = member.guild.id
+            
+            # If it was an intentional disconnect (triggered by command/timeout), ignore
+            if guild_id in self.intentional_disconnects:
+                self.intentional_disconnects.discard(guild_id)
+                return
+            
+            # If we are here, the bot was likely kicked or disconnected forcefully
+            # Find the player to get the text channel
+            if guild_id in self.players:
+                player = self.players[guild_id]
+                if player.channel:
+                    try:
+                        embed = discord.Embed(
+                            description="🥺 **Oh no! I got kicked from the voice channel...**\n*Was I being a bad bot?* 👉👈",
+                            color=ERROR_COLOR
+                        )
+                        await player.channel.send(embed=embed)
+                    except:
+                        pass
+                
+                # Ensure cleanup happens even if kicked
+                await self.cleanup(member.guild, intentional=False)
     
-    async def cleanup(self, guild):
+    async def cleanup(self, guild, intentional=False):
         """Cleanup player and disconnect from voice."""
+        if intentional:
+            self.intentional_disconnects.add(guild.id)
+            
         try:
             await guild.voice_client.disconnect()
         except AttributeError:
@@ -211,7 +257,7 @@ class Music(commands.Cog):
         if not ctx.voice_client:
             return await ctx.send("❌ I'm not in a voice channel!")
         
-        await self.cleanup(ctx.guild)
+        await self.cleanup(ctx.guild, intentional=True)
         await ctx.send("👋 Disconnected from voice channel!")
     
     # ============================================
@@ -361,6 +407,8 @@ class Music(commands.Cog):
         player.loop_queue = False  # Reset queue loop too!
         
         if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+            # This is key: stop() usually doesn't trigger on_voice_state_update disconnect immediately,
+            # but cleanup() below will.
             ctx.voice_client.stop()
         
         # Remove the player completely to prevent any ghost playback
