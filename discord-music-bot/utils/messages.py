@@ -1,6 +1,6 @@
 """
-Centralized Message System for Discord Music Bot.
-All user-facing messages in one place for easy management.
+Professional Message System for Discord Music Bot.
+All user-facing messages - Clear, direct, and professional.
 """
 
 import discord
@@ -8,29 +8,28 @@ from enum import Enum
 
 
 # ============================================
-# Color Constants - Aesthetic Theme
+# Professional Message System
+# ============================================
+# Style Guide:
+# - Direct and actionable
+# - Minimal emojis (functional only)
+# - No anthropomorphization ("I", "me")
+# - Consistent structure
+# - Professional tone for mature users
+# ============================================
+
+
+# ============================================
+# Color Constants
 # ============================================
 
 class Colors:
-    """
-    Embed colors - Unified pastel theme.
-    All embeds use the same color for consistency.
-    """
-    # Unified color for all embeds: Soft Pastel Blue
-    UNIFIED = 0xAFC6E9      # #AFC6E9
+    """Unified color scheme for all embeds."""
+    PRIMARY = 0xAFC6E9  # Soft Pastel Blue
     
-    # All embeds should use UNIFIED color
-    PRIMARY = UNIFIED
-    SUCCESS = UNIFIED
-    ERROR = UNIFIED
-    WARNING = UNIFIED
-    INFO = UNIFIED
-    MUSIC = UNIFIED
-    
-    # Theme reference (same color for compatibility)
-    THEME_MIDNIGHT = UNIFIED
-    THEME_LAVENDER = UNIFIED
-    THEME_INDIGO = UNIFIED
+    # Aliases for compatibility
+    SUCCESS = ERROR = WARNING = INFO = MUSIC = PRIMARY
+    UNIFIED = PRIMARY
 
 
 # ============================================
@@ -39,14 +38,14 @@ class Colors:
 
 class Voice:
     """Voice channel related messages."""
-    JOIN_FIRST = "❌ Join a voice channel first — I can't play music alone."
-    NOT_SAME_CHANNEL = "❌ We need to be in the same voice channel."
-    ALREADY_PLAYING = "❌ I'm already playing music in another channel."
-    NOT_CONNECTED = "❌ I'm not connected to any voice channel."
-    JOINED = "🎵 Joined **{channel}**!"
-    MOVED = "🎵 Moved to **{channel}**!"
-    DISCONNECTED = "👋 Disconnected from voice."
-    KICKED = "🥺 Oh no! I got kicked from the voice channel..."
+    JOIN_FIRST = "❌ Join a voice channel to use this command"
+    NOT_SAME_CHANNEL = "❌ Must be in the same voice channel as the bot"
+    ALREADY_PLAYING = "❌ Already active in another voice channel"
+    NOT_CONNECTED = "❌ Not connected to a voice channel"
+    JOINED = "✅ Connected to {channel}"
+    MOVED = "✅ Moved to {channel}"
+    DISCONNECTED = "✅ Disconnected from voice channel"
+    KICKED = "⚠️ Disconnected from voice channel"
 
 
 # ============================================
@@ -55,48 +54,48 @@ class Voice:
 
 class Playback:
     """Playback related messages."""
-    NOTHING_PLAYING = "❌ Nothing is playing right now."
-    TRACK_ERROR = "❌ This track couldn't be played."
-    QUEUE_EMPTY = "❌ The queue is currently empty."
-    NO_RESULTS = "❌ I couldn't find any results for that."
-    FORMAT_ERROR = "❌ This format isn't supported yet."
-    NOW_PLAYING = "🎶 Now playing"
-    PAUSED = "⏸️ Playback paused."
-    RESUMED = "▶️ Playback resumed."
-    SKIPPED = "⏭️ Skipped."
-    STOPPED = "⏹️ Playback stopped."
+    NOTHING_PLAYING = "❌ No track currently playing"
+    TRACK_ERROR = "❌ Unable to play this track"
+    QUEUE_EMPTY = "❌ Queue is empty"
+    NO_RESULTS = "❌ No results found for that query"
+    FORMAT_ERROR = "❌ Unsupported media format"
+    NOW_PLAYING = "▶️ Now playing"
+    PAUSED = "⏸️ Paused"
+    RESUMED = "▶️ Resumed"
+    SKIPPED = "⏭️ Skipped"
+    STOPPED = "⏹️ Stopped"
     ADDED_TO_QUEUE = "✅ Added to queue: **{title}**"
-    ADDED_MULTIPLE = "✅ Added **{count}** songs to queue!"
+    ADDED_MULTIPLE = "✅ Added {count} tracks to queue"
 
 
 # ============================================
-# Button/Control Messages
+# Control Messages
 # ============================================
 
 class Controls:
     """Button and control related messages."""
-    NOT_ALLOWED = "❌ You're not allowed to use these controls."
-    MUST_BE_IN_VC = "❌ Only users in the voice channel can use this."
-    DJ_REQUIRED = "❌ DJ role required to use this control."
-    COOLDOWN = "⏳ Easy there... try again in a moment."
-    NOTHING_TO_SKIP = "❌ Nothing to skip!"
-    NOTHING_TO_PAUSE = "❌ Nothing to pause!"
+    NOT_ALLOWED = "❌ Insufficient permissions for this control"
+    MUST_BE_IN_VC = "❌ Must be in voice channel to use controls"
+    DJ_REQUIRED = "❌ DJ role required"
+    COOLDOWN = "⏳ Command on cooldown"
+    NOTHING_TO_SKIP = "❌ No track to skip"
+    NOTHING_TO_PAUSE = "❌ No track to pause"
 
 
 # ============================================
-# Queue/Loop Messages
+# Queue Messages
 # ============================================
 
 class Queue:
     """Queue and loop related messages."""
-    NOTHING_TO_LOOP = "❌ There's nothing to loop right now."
-    NEED_TRACKS = "❌ Queue must have at least one track."
-    TRACK_NOT_FOUND = "❌ That track doesn't exist in the queue."
-    QUEUE_CLEARED = "🗑️ Queue cleared!"
-    LOOP_SONG = "🔂 Song loop enabled."
-    LOOP_QUEUE = "🔁 Queue loop enabled."
-    LOOP_OFF = "➡️ Loop disabled."
-    SHUFFLED = "🔀 Queue shuffled!"
+    NOTHING_TO_LOOP = "❌ No active track to loop"
+    NEED_TRACKS = "❌ Queue requires at least one track"
+    TRACK_NOT_FOUND = "❌ Track not found in queue"
+    QUEUE_CLEARED = "✅ Queue cleared"
+    LOOP_SONG = "🔂 Track loop enabled"
+    LOOP_QUEUE = "🔁 Queue loop enabled"
+    LOOP_OFF = "✅ Loop disabled"
+    SHUFFLED = "🔀 Queue shuffled"
 
 
 # ============================================
@@ -105,36 +104,36 @@ class Queue:
 
 class Volume:
     """Volume related messages."""
-    INVALID_RANGE = "❌ Volume must be between 1% and 100%."
-    UNAVAILABLE = "❌ Volume control is unavailable right now."
-    SET = "🔊 Volume set to **{level}%**"
-    INCREASED = "🔊 Volume: **{level}%**"
-    DECREASED = "🔉 Volume: **{level}%**"
+    INVALID_RANGE = "❌ Volume must be 1-100%"
+    UNAVAILABLE = "❌ Volume control unavailable"
+    SET = "🔊 Volume: {level}%"
+    INCREASED = "🔊 Volume: {level}%"
+    DECREASED = "🔉 Volume: {level}%"
 
 
 # ============================================
-# Spotify Messages  
+# Spotify Messages
 # ============================================
 
 class Spotify:
     """Spotify related messages."""
-    NOT_AVAILABLE = "❌ Spotify integration is not available."
-    PROCESSING = "🎵 Processing Spotify link..."
-    PLAYLIST_ERROR = "❌ Couldn't access this playlist. It might be private or algorithmic."
-    NO_TRACKS = "❌ No playable tracks found in this playlist."
+    NOT_AVAILABLE = "❌ Spotify integration unavailable"
+    PROCESSING = "⏳ Processing Spotify link"
+    PLAYLIST_ERROR = "❌ Unable to access playlist (may be private or algorithmic)"
+    NO_TRACKS = "❌ No playable tracks in this playlist"
 
 
 # ============================================
-# Generic/System Messages
+# System Messages
 # ============================================
 
 class System:
-    """Generic system messages."""
-    UNKNOWN_ERROR = "⚠️ Something went wrong — please try again."
-    UNEXPECTED = "⚠️ I ran into an unexpected issue."
-    ACTION_FAILED = "⚠️ That action couldn't be completed."
-    TIMEOUT = "⏰ Request timed out. Please try again."
-    RATE_LIMITED = "⏳ Too many requests. Please slow down."
+    """System and error messages."""
+    UNKNOWN_ERROR = "❌ An error occurred, try again"
+    UNEXPECTED = "❌ Unexpected error occurred"
+    ACTION_FAILED = "❌ Action failed"
+    TIMEOUT = "❌ Request timed out"
+    RATE_LIMITED = "⏳ Rate limit exceeded, try again shortly"
 
 
 # ============================================
