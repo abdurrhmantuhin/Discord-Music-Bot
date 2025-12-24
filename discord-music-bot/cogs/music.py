@@ -41,6 +41,7 @@ class MusicPlayer:
         self.loop = False
         self.loop_queue = False
         self.stopped = False  # Flag to completely stop the player
+        self.now_playing_msg = None  # FIX #8: Store Now Playing message for editing
         
         ctx.bot.loop.create_task(self.player_loop())
     
@@ -119,11 +120,21 @@ class MusicPlayer:
                     after=lambda e: self.bot.loop.call_soon_threadsafe(self.next.set)
                 )
                 
-                # Send now playing message - Clean aesthetic embed (no buttons)
+                # FIX #8: Edit Now Playing message instead of spamming new ones
                 try:
                     requester = self.current.get('requester', None) if self.current else None
-                    embed = create_now_playing_embed(source, self, requester)
-                    await self.channel.send(embed=embed)
+                    remaining = len(self.queue)  # Songs remaining after this one
+                    embed = create_now_playing_embed(source, self, requester, remaining)
+                    
+                    # Try to edit existing message, or send new one
+                    if self.now_playing_msg:
+                        try:
+                            await self.now_playing_msg.edit(embed=embed)
+                        except:
+                            # Message was deleted, send new one
+                            self.now_playing_msg = await self.channel.send(embed=embed)
+                    else:
+                        self.now_playing_msg = await self.channel.send(embed=embed)
                 except Exception as embed_error:
                     # Fallback to simple message if embed fails
                     print(f"Embed error: {embed_error}")
@@ -329,9 +340,19 @@ class Music(commands.Cog):
                             try:
                                 result = await YTDLSource.search(search_query, loop=self.bot.loop)
                                 player.queue.append(result)
-                            except:
-                                continue
-                        # No separate message for single track - Now Playing will show
+                                
+                                # FIX #3: Show feedback for single track additions
+                                current_playing = 1 if player.current else 0
+                                embed = create_song_added_embed(
+                                    title=result.get('title', 'Unknown'),
+                                    duration=result.get('duration'),
+                                    url=result.get('webpage_url'),
+                                    thumbnail=result.get('thumbnail'),
+                                    position=len(player.queue) + current_playing
+                                )
+                                await ctx.send(embed=embed)
+                            except Exception as e:
+                                await ctx.send(f"⚠️ Couldn't add track")
                         return
                 else:
                     return await ctx.send(
@@ -346,12 +367,22 @@ class Music(commands.Cog):
                 result = await YTDLSource.from_url(query, loop=self.bot.loop, stream=True)
                 
                 if isinstance(result, list):
-                    # It's a playlist
+                    # FIX #2: It's a playlist - use consistent embed
+                    total_duration = sum(song.get('duration', 0) or 0 for song in result)
+                    added = 0
                     for song in result:
                         if len(player.queue) < MAX_QUEUE_SIZE:
                             player.queue.append(song)
+                            added += 1
                     
-                    await ctx.send(f"✅ Added **{len(result)}** songs to queue!")
+                    embed = create_playlist_embed(
+                        playlist_name="YouTube Playlist",
+                        total_tracks=added,
+                        total_duration=total_duration,
+                        remaining=added,
+                        thumbnail=result[0].get('thumbnail') if result else None
+                    )
+                    await ctx.send(embed=embed)
                 else:
                     # Single song - create source and add to queue
                     song_data = {
@@ -363,36 +394,30 @@ class Music(commands.Cog):
                     }
                     player.queue.append(song_data)
                     
-                    embed = discord.Embed(
-                        title="✅ Added to Queue",
-                        description=f"[{result.title}]({result.webpage_url})",
-                        color=SUCCESS_COLOR
+                    # FIX #4: Use correct position (account for currently playing)
+                    current_playing = 1 if player.current else 0
+                    embed = create_song_added_embed(
+                        title=result.title,
+                        duration=result.duration,
+                        url=result.webpage_url,
+                        thumbnail=result.thumbnail,
+                        position=len(player.queue) + current_playing
                     )
-                    embed.add_field(name="Position", value=len(player.queue), inline=True)
-                    if result.duration:
-                        embed.add_field(
-                            name="Duration",
-                            value=YTDLSource.format_duration(result.duration),
-                            inline=True
-                        )
                     await ctx.send(embed=embed)
             else:
                 # Search query
                 result = await YTDLSource.search(query, loop=self.bot.loop)
                 player.queue.append(result)
                 
-                embed = discord.Embed(
-                    title="✅ Added to Queue",
-                    description=f"[{result['title']}]({result['webpage_url']})",
-                    color=SUCCESS_COLOR
+                # FIX #4: Use create_song_added_embed with correct position
+                current_playing = 1 if player.current else 0
+                embed = create_song_added_embed(
+                    title=result.get('title', 'Unknown'),
+                    duration=result.get('duration'),
+                    url=result.get('webpage_url'),
+                    thumbnail=result.get('thumbnail'),
+                    position=len(player.queue) + current_playing
                 )
-                embed.add_field(name="Position", value=len(player.queue), inline=True)
-                if result.get('duration'):
-                    embed.add_field(
-                        name="Duration",
-                        value=YTDLSource.format_duration(result['duration']),
-                        inline=True
-                    )
                 await ctx.send(embed=embed)
                 
         except Exception as e:
