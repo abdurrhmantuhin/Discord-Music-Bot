@@ -166,7 +166,7 @@ class Music(commands.Cog):
     # ============================================
     
     async def _search_song_safe(self, query):
-        """Search with error handling for parallel processing."""
+        """Search with error handling."""
         try:
             result = await YTDLSource.search(query, loop=self.bot.loop)
             return result
@@ -174,38 +174,26 @@ class Music(commands.Cog):
             logger.warning(f"Search failed: {query[:30]} - {e}")
             return None
     
-    async def _process_playlist_parallel(self, tracks, player, batch_size=10):
-        """Process playlist songs in parallel batches."""
+    async def _process_playlist_background(self, ctx, tracks, player):
+        """Process playlist songs in background (sequential but non-blocking)."""
+        logger.info(f"Background processing {len(tracks)} songs")
         added = 0
         
-        for i in range(0, len(tracks), batch_size):
-            batch = tracks[i:i + batch_size]
-            
-            # Create tasks for parallel execution
-            tasks = [self._search_song_safe(query) for query in batch]
-            
-            # Execute all tasks simultaneously
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Add successful results to queue
-            for result in results:
-                if result and not isinstance(result, Exception):
-                    if len(player.queue) < MAX_QUEUE_SIZE:
+        try:
+            for query in tracks:
+                if len(player.queue) >= MAX_QUEUE_SIZE:
+                    break
+                    
+                try:
+                    result = await YTDLSource.search(query, loop=self.bot.loop)
+                    if result:
                         player.queue.append(result)
                         added += 1
-        
-        return added
-    
-    async def _process_playlist_background(self, ctx, tracks, player):
-        """Process remaining playlist songs in background."""
-        logger.info(f"Background processing {len(tracks)} songs")
-        
-        try:
-            added = await self._process_playlist_parallel(tracks, player)
-            logger.info(f"Background complete: {added}/{len(tracks)} songs")
+                except Exception as e:
+                    logger.warning(f"Background search failed: {query[:30]}")
+                    continue
             
-            if added < len(tracks):
-                await ctx.send(f"⚠️ Added {added}/{len(tracks)} songs (some unavailable)")
+            logger.info(f"Background complete: {added}/{len(tracks)} songs")
         except Exception as e:
             logger.error(f"Background processing error: {e}")
 
