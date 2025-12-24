@@ -306,16 +306,15 @@ class Music(commands.Cog):
                         )
                         await ctx.send(embed=embed)
                         
-                        # STEP 2: THEN add songs to queue (with typing indicator)
+                        # STEP 2: THEN add songs to queue (silently, no typing)
                         added = 0
-                        async with ctx.typing():
-                            for search_query in tracks:
-                                try:
-                                    result = await YTDLSource.search(search_query, loop=self.bot.loop)
-                                    player.queue.append(result)
-                                    added += 1
-                                except:
-                                    continue
+                        for search_query in tracks:
+                            try:
+                                result = await YTDLSource.search(search_query, loop=self.bot.loop)
+                                player.queue.append(result)
+                                added += 1
+                            except:
+                                continue
                         
                         # STEP 3: Confirm if some couldn't be found
                         if added < len(tracks):
