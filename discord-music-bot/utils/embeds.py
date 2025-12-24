@@ -125,9 +125,7 @@ def create_now_playing_embed(source, player=None, requester=None, remaining: int
     if hasattr(source, 'duration') and source.duration:
         embed.add_field(name="Length", value=format_duration(source.duration), inline=True)
     
-    # Remaining songs (only show if there are more)
-    if remaining > 0:
-        embed.add_field(name="Remaining", value=f"{remaining} tracks", inline=True)
+    # NOTE: Removed "Remaining" field - users found it confusing
     
     # Footer - consistent behavior
     if requester:

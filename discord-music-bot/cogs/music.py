@@ -431,7 +431,7 @@ class Music(commands.Cog):
         ctx.voice_client.resume()
         await ctx.send("▶️ Resumed!")
     
-    @commands.command(name='stop')
+    @commands.command(name='stop', aliases=['s'])
     async def stop(self, ctx):
         """Stop playback and clear the queue."""
         if not ctx.voice_client:
@@ -459,7 +459,7 @@ class Music(commands.Cog):
         
         await ctx.send("⏹️ Stopped and cleared the queue!")
     
-    @commands.command(name='skip', aliases=['s', 'next'])
+    @commands.command(name='skip', aliases=['n', 'next'])
     async def skip(self, ctx):
         """Skip to the next song."""
         if not ctx.voice_client or not ctx.voice_client.is_playing():

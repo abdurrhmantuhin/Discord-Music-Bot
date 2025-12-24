@@ -33,6 +33,7 @@ intents.voice_states = True
 bot = commands.Bot(
     command_prefix=BOT_PREFIX,
     intents=intents,
+    case_insensitive=True,  # Commands work in any case (p, P, PLAY, etc.)
     description="🎵 A powerful Discord Music Bot with YouTube & Spotify support!"
 )
 
