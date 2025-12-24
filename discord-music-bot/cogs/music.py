@@ -345,19 +345,18 @@ class Music(commands.Cog):
                         )
                         await ctx.send(embed=embed)
                         
-                        # STEP 2: Process FIRST song immediately (5-10 sec)
-                        first_result = await self._search_song_safe(tracks[0])
-                        if first_result:
-                            player.queue.append(first_result)
-                            logger.info(f"First song ready: {first_result.get('title', 'Unknown')[:30]}")
+                        # Add ALL songs to queue (simple, reliable)
+                        added = 0
+                        for search_query in tracks:
+                            try:
+                                result = await YTDLSource.search(search_query, loop=self.bot.loop)
+                                if result:
+                                    player.queue.append(result)
+                                    added += 1
+                            except:
+                                continue
                         
-                        # STEP 3: Process REST in background (user doesn't wait!)
-                        if len(tracks) > 1:
-                            remaining_tracks = tracks[1:]
-                            asyncio.create_task(
-                                self._process_playlist_background(ctx, remaining_tracks, player)
-                            )
-                        
+                        logger.info(f"Playlist complete: {added}/{len(tracks)} songs added")
                         return
                     else:
                         # It's a single track or album (list of queries)
