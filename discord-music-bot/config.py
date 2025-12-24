@@ -26,7 +26,7 @@ SPOTIFY_SCOPE = "user-library-read playlist-read-private playlist-read-collabora
 SPOTIFY_CACHE_PATH = ".spotify_cache"
 
 # ============================================
-# YT-DLP Configuration
+# YT-DLP Configuration (Optimized for Speed)
 # ============================================
 YTDL_FORMAT_OPTIONS = {
     'format': 'bestaudio/best',
@@ -34,13 +34,18 @@ YTDL_FORMAT_OPTIONS = {
     'restrictfilenames': True,
     'noplaylist': False,
     'nocheckcertificate': True,
-    'ignoreerrors': False,
+    'ignoreerrors': True,  # Skip unavailable videos
     'logtostderr': False,
     'quiet': True,
     'no_warnings': True,
-    'default_search': 'ytsearch',
+    'default_search': 'ytsearch1',  # Only first result (faster)
     'source_address': '0.0.0.0',
     'extract_flat': False,
+    'socket_timeout': 10,  # Don't wait forever
+    'retries': 2,  # Only retry twice
+    'geo_bypass': True,  # Skip geo-restriction check
+    'age_limit': None,  # Skip age verification
+    'prefer_free_formats': True,  # Faster formats
 }
 
 # ============================================

@@ -7,7 +7,11 @@ import asyncio
 import discord
 import yt_dlp
 import re
+import logging
 from config import YTDL_FORMAT_OPTIONS, FFMPEG_OPTIONS
+from utils.cache import search_cache
+
+logger = logging.getLogger('discord_music_bot')
 
 
 # Create YT-DLP instance
@@ -88,7 +92,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def search(cls, query, *, loop=None):
         """
-        Search YouTube for a query and return first result.
+        Search YouTube for a query with caching.
         
         Args:
             query: Search query string
@@ -98,6 +102,12 @@ class YTDLSource(discord.PCMVolumeTransformer):
             Dictionary with song info
         """
         loop = loop or asyncio.get_event_loop()
+        
+        # Check cache first (instant!)
+        cached = search_cache.get(query)
+        if cached:
+            logger.info(f"Cache hit: {query[:30]}")
+            return cached
         
         search_query = f"ytsearch:{query}"
         
@@ -114,13 +124,18 @@ class YTDLSource(discord.PCMVolumeTransformer):
         
         # Return first result
         entry = data['entries'][0]
-        return {
+        result = {
             'title': entry.get('title', 'Unknown'),
             'webpage_url': entry.get('webpage_url') or entry.get('url'),
             'duration': entry.get('duration'),
             'thumbnail': entry.get('thumbnail'),
             'uploader': entry.get('uploader', 'Unknown')
         }
+        
+        # Cache the result
+        search_cache.set(query, result)
+        
+        return result
     
     @staticmethod
     def format_duration(seconds):
