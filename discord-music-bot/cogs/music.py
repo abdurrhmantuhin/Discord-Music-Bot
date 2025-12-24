@@ -9,10 +9,6 @@ import discord
 from discord.ext import commands
 from collections import deque
 
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from config import (
     EMBED_COLOR, ERROR_COLOR, SUCCESS_COLOR,
     DEFAULT_VOLUME, MAX_QUEUE_SIZE, DISCONNECT_TIMEOUT
@@ -41,7 +37,6 @@ class MusicPlayer:
         self.loop = False
         self.loop_queue = False
         self.stopped = False  # Flag to completely stop the player
-        self.now_playing_msg = None  # FIX #8: Store Now Playing message for editing
         
         ctx.bot.loop.create_task(self.player_loop())
     
@@ -120,21 +115,12 @@ class MusicPlayer:
                     after=lambda e: self.bot.loop.call_soon_threadsafe(self.next.set)
                 )
                 
-                # FIX #8: Edit Now Playing message instead of spamming new ones
+                # Send fresh Now Playing embed for EACH song (no editing)
                 try:
                     requester = self.current.get('requester', None) if self.current else None
                     remaining = len(self.queue)  # Songs remaining after this one
                     embed = create_now_playing_embed(source, self, requester, remaining)
-                    
-                    # Try to edit existing message, or send new one
-                    if self.now_playing_msg:
-                        try:
-                            await self.now_playing_msg.edit(embed=embed)
-                        except:
-                            # Message was deleted, send new one
-                            self.now_playing_msg = await self.channel.send(embed=embed)
-                    else:
-                        self.now_playing_msg = await self.channel.send(embed=embed)
+                    await self.channel.send(embed=embed)
                 except Exception as embed_error:
                     # Fallback to simple message if embed fails
                     print(f"Embed error: {embed_error}")
@@ -303,9 +289,26 @@ class Music(commands.Cog):
                     if isinstance(spotify_data, dict) and 'tracks' in spotify_data:
                         # It's a playlist
                         tracks = spotify_data.get('tracks', [])
-                        if tracks:
-                            added = 0
-                            total_added = 0
+                        if not tracks:
+                            return await ctx.send(
+                                "❌ **Cannot access this playlist!**\n"
+                                "This might be a personalized/algorithmic playlist.\n"
+                                "Try a regular public Spotify playlist instead."
+                            )
+                        
+                        # STEP 1: Send "Added Playlist" embed FIRST (instant feedback)
+                        embed = create_playlist_embed(
+                            playlist_name=spotify_data.get('name', 'Spotify Playlist'),
+                            total_tracks=len(tracks),
+                            total_duration=0,  # Spotify doesn't provide this easily
+                            remaining=len(tracks),
+                            thumbnail=spotify_data.get('image')
+                        )
+                        await ctx.send(embed=embed)
+                        
+                        # STEP 2: THEN add songs to queue (with typing indicator)
+                        added = 0
+                        async with ctx.typing():
                             for search_query in tracks:
                                 try:
                                     result = await YTDLSource.search(search_query, loop=self.bot.loop)
@@ -313,26 +316,11 @@ class Music(commands.Cog):
                                     added += 1
                                 except:
                                     continue
-                            
-                            if added > 0:
-                                # Send playlist embed instead of text message
-                                embed = create_playlist_embed(
-                                    playlist_name=spotify_data.get('name', 'Spotify Playlist'),
-                                    total_tracks=added,
-                                    total_duration=0,  # Spotify doesn't give total duration easily
-                                    remaining=added,
-                                    thumbnail=spotify_data.get('image')
-                                )
-                                await ctx.send(embed=embed)
-                                return
-                            else:
-                                return await ctx.send("❌ Could not find songs from Spotify link.")
-                        else:
-                            return await ctx.send(
-                                "❌ **Cannot access this playlist!**\n"
-                                "This might be a personalized/algorithmic playlist.\n"
-                                "Try a regular public Spotify playlist instead."
-                            )
+                        
+                        # STEP 3: Confirm if some couldn't be found
+                        if added < len(tracks):
+                            await ctx.send(f"⚠️ Added {added}/{len(tracks)} songs (some couldn't be found)")
+                        return
                     else:
                         # It's a single track or album (list of queries)
                         queries = spotify_data if isinstance(spotify_data, list) else [spotify_data]
@@ -367,22 +355,25 @@ class Music(commands.Cog):
                 result = await YTDLSource.from_url(query, loop=self.bot.loop, stream=True)
                 
                 if isinstance(result, list):
-                    # FIX #2: It's a playlist - use consistent embed
+                    # YouTube playlist - send embed FIRST
                     total_duration = sum(song.get('duration', 0) or 0 for song in result)
+                    
+                    # STEP 1: Send embed immediately
+                    embed = create_playlist_embed(
+                        playlist_name="YouTube Playlist",
+                        total_tracks=len(result),
+                        total_duration=total_duration,
+                        remaining=len(result),
+                        thumbnail=result[0].get('thumbnail') if result else None
+                    )
+                    await ctx.send(embed=embed)
+                    
+                    # STEP 2: Then add to queue
                     added = 0
                     for song in result:
                         if len(player.queue) < MAX_QUEUE_SIZE:
                             player.queue.append(song)
                             added += 1
-                    
-                    embed = create_playlist_embed(
-                        playlist_name="YouTube Playlist",
-                        total_tracks=added,
-                        total_duration=total_duration,
-                        remaining=added,
-                        thumbnail=result[0].get('thumbnail') if result else None
-                    )
-                    await ctx.send(embed=embed)
                 else:
                     # Single song - create source and add to queue
                     song_data = {
